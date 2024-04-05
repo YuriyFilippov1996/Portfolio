@@ -1,0 +1,1025 @@
+openapi: 3.1.0
+info:
+  title: API Кинотеатр "Искорка"
+  description: |
+    Данный API разработан для решения следующих задач: 
+    проверка наличия мест на сеанс, осуществление бронирования места, отмена бронирования, изменение время сеанса. Также API позволяет реализовать бонусную программу кинотеатра - офрмлять бонусные карты клиентам, учитывать их при бронировании, начислять и списывать с них баллы. API предоставляет возможность создавать ежемесячные отчёты по использованию бонусных карт клиентами.
+  version: 1.0.0
+externalDocs:
+  description: Документ создан на основе подготовленного описания API
+  url: https://docs.google.com/document/d/1uJs2pU5zPvFqw-TcHRv6gOFoLvJdcvbzf3xye_YfKRk/edit?usp=sharing
+servers:
+  - url: https://cinema.iscorka.ru/api
+tags:
+  - name: Session
+    description: Информация о сеансах
+  - name: Booking 
+    description: Информация о бронировании
+  - name: Place 
+    description: Информация о местах
+  - name: BonusCard 
+    description: Информация о бонусных картах клиентов
+  - name: Report
+    description: Данные ежемесячных отчётов по использованию бонусных карт клиентами
+  - name: Payment
+    description: Информация о совершённых платежах
+paths:
+  /session:
+    get:
+      tags:
+        - session
+      summary: Запрос списка сеансов
+      description: |
+        С помощью этого метода вы можете получить список сеансов. Можно получить все доступные сеансы, либо по названию фильма. Предусмотрена пагинация
+      parameters:
+        - name: name_film
+          in: query
+          description: Название фильма
+          required: false
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Успешно
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  sessions:
+                    $ref: "#/components/schemas/sessions"
+                  pagination:
+                    $ref: "#/components/schemas/pagination"
+            application/xml:
+              schema:
+                type: object
+                properties:
+                  sessions:
+                    $ref: "#/components/schemas/sessions"
+                  pagination:
+                    $ref: "#/components/schemas/pagination"
+                xml:
+                  name: session
+        '500':
+          description: Ошибка сервера
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: Сервер недоступен
+            application/xml:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: Сервер недоступен
+                xml:
+                  name: session
+  /session/{session_id}:
+    get:
+      tags:
+        - session
+      summary: Запрос данных о сеансе
+      description: |
+        С помощью этого метода вы можете получить все
+        данные о сеансе
+      parameters:
+        - name: session_id
+          in: path
+          description: Идентификатор сеанса
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Успешно
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/session"
+            application/xml:
+              schema:
+                $ref: "#/components/schemas/session"
+        '404':
+          description: Сеанс не найден
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: Сеанс не найден
+            application/xml:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: Сеанс не найден
+                xml:
+                  name: session
+    patch:
+      tags:
+        - session
+      summary: Запрос на частичное изменение сеанса
+      description: |
+        С помощью этого метода вы можете изменить время сеанса
+      parameters:
+        - name: session_id
+          in: path
+          description: Идентификатор сеанса
+          required: true
+          schema:
+            type: integer
+      requestBody:
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  dateTime: 
+                    type: string
+                    format: date-time
+      responses:
+        '200':
+          description: Успешно
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  session_id:
+                    type: integer
+                    example: 354
+                  dateTime:
+                    type: string
+                    format: date-time
+            application/xml:
+              schema:
+                type: object
+                properties:
+                  session_id:
+                    type: integer
+                    example: 354
+                  dateTime:
+                    type: string
+                    format: date-time
+                xml:
+                  name: session
+        '403':
+          description: Запрещено
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: Нет прав доступа
+            application/xml:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: Нет прав доступа
+                xml:
+                  name: session
+  /place/{place_id}:
+    get:
+      tags:
+        - place
+      summary: Запрос данных о месте
+      description: |
+        С помощью этого метода вы можете получить информацию о том, 
+        свободно ли место, а также стоимость билета для данного места
+      parameters:
+        - name: place_id
+          in: path
+          description: Идентификатор места
+          required: true
+          schema:
+            type: string
+        - name: session_id
+          in: query
+          description: Идентификатор сеанса
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Успешно
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  isFree:
+                    type: boolean
+                    example: Свободно
+                  ticket_price:
+                    type: integer
+                    example: 599
+            application/xml:
+              schema:
+                type: object
+                properties:
+                  isFree:
+                    type: boolean
+                    example: Свободно
+                  ticket_price:
+                    type: integer
+                    example: 599
+                xml:
+                  name: place
+        '404':
+          description: Некорректный запрос
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: Сочетание места и сеанса не найдено
+            application/xml:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: Сочетание места и сеанса не найдено
+                xml:
+                  name: place
+    patch:
+      tags:
+        - place
+      summary: Изменение статуса места
+      description: |
+        С помощью этого метода система автоматически меняет параметр места isFree при бронировании или при отмене бронирования
+      parameters:
+        - name: place_id
+          in: path
+          description: Идентификатор места
+          required: true
+          schema:
+            type: string
+        - name: session_id
+          in: query
+          description: Идентификатор сеанса
+          required: true
+          schema:
+            type: integer
+      requestBody:
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  isFree: 
+                    type: boolean
+                    example: false
+      responses:
+        '200':
+          description: Успешно
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  isFree: 
+                    type: boolean
+                    example: false
+            application/xml:
+              schema:
+                type: object
+                properties:
+                  isFree: 
+                    type: boolean
+                    example: false
+                xml:
+                  name: place
+        '500':
+          description: Ошибка сервера
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: Ошибка сервера
+            application/xml:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: Ошибка сервера
+                xml:
+                  name: place
+  /booking:
+    post:
+      tags:
+        - booking
+      summary: Создание бронирования
+      description: |
+        С помощью этого метода вы можете осуществить бронирование. Забронировать можно сразу несколько мест (массив). Перед запросом этого метода система автоматически делает запрос 
+        на получение данных о местах, чтобы подтвердить, что они свободны. Также можно указать бонусную карту (опционально). При создании бронирования статус по умолчанию "Активно"
+      requestBody:
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  bonusCard_id:
+                    type: integer
+                    example: 112233
+                  session_id:
+                    type: integer
+                    example: 356
+                  places:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        place_id:
+                          type: string
+                          example: x5y10z12
+      responses:
+        '200':
+          description: Успешно
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  booking_id:
+                    type: integer
+                    example: 777
+                  createDate:
+                    type: string
+                    format: date-time
+            application/xml:
+              schema:
+                type: object
+                properties:
+                  booking_id:
+                    type: integer
+                    example: 777
+                  createDate:
+                    type: string
+                    format: date-time
+                xml:
+                  name: booking
+        '405':
+          description: Запрос отклонён
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: Место уже забронировано
+            application/xml:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: Место уже забронировано
+                xml:
+                  name: booking
+  /booking/{booking_id}:
+    get:
+      tags:
+        - booking
+      summary: Получение данных о бронировании
+      description: |
+        С помощью этого метода вы можете получить всю информацию о бронировании
+      parameters:
+        - name: booking_id
+          in: path
+          description: Идентификатор бронирования
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Успешно
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/booking"
+            application/xml:
+              schema:
+                $ref: "#/components/schemas/booking"
+        '404':
+          description: Некорректный запрос
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: Бронирование не найдено
+            application/xml:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: Бронирование не найдено
+                xml:
+                  name: booking
+    patch:
+      tags:
+        - booking
+      summary: Отмена бронирования
+      description: |
+        С помощью этого метода вы можете отменить бронирование. Метод меняет статус бронирования с "Активно" на "Отменено"
+      parameters:
+        - name: booking_id
+          in: path
+          description: Идентификатор бронирования
+          required: true
+          schema:
+            type: integer
+      requestBody:
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: Отменено
+      responses:
+        '200':
+          description: Успешно
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  booking_id:
+                    type: integer
+                    example: 777
+                  status:
+                    type: string
+                    example: Отменено
+            application/xml:
+              schema:
+                type: object
+                properties:
+                  booking_id:
+                    type: integer
+                    example: 777
+                  status:
+                    type: string
+                    example: Отменено
+                xml:
+                  name: booking
+        '404':
+          description: Некорректный запрос
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: Бронирование не найдено
+            application/xml:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: Бронирование не найдено
+                xml:
+                  name: booking
+  /bonusCard:
+    post:
+      tags:
+        - bonusCard
+      summary: Оформление бонусной карты
+      description: |
+        С помощью этого метода вы можете оформить бонусную карту клиенту
+      requestBody:
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  cardHolder_id:
+                    type: integer
+                    example: 347
+      responses:
+        '200':
+          description: Успешно
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  bonusCard_id:
+                    type: integer
+                    example: 112233
+                  createDate:
+                    type: string
+                    format: date-time
+            application/xml:
+              schema:
+                type: object
+                properties:
+                  bonusCard_id:
+                    type: integer
+                    example: 112233
+                  createDate:
+                    type: string
+                    format: date-time
+                xml:
+                  name: bonusCard
+        '500':
+          description: Ошибка сервера
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: Ошибка сервера
+            application/xml:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: Ошибка сервера
+                xml:
+                  name: bonusCard
+  /bonusCard/{bonusCard_id}:
+    get:
+      tags:
+        - bonusCard
+      summary: Получение данных о бонусной карте
+      description: |
+        С помощью этого метода вы можете получить информацию о бонусной карте
+      parameters:
+        - name: bonusCard_id
+          in: path
+          description: Идентификатор бонусной карты
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Успешно
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/bonusCard"
+            application/xml:
+              schema:
+                $ref: "#/components/schemas/bonusCard"
+        '404':
+          description: Некорректный запрос
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: Карта не найдена
+            application/xml:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: Карта не найдена
+                xml:
+                  name: bonusCard
+    patch:
+      tags:
+        - bonusCard
+      summary: Изменение бонусной карты
+      description: |
+        С помощью этого метода система автоматически производит частичное изменение некоторых параметров карты после её использования при оплате билетов. При начислении бонусов на карту зачисляется 10% от суммы оплаты. Также метод может быть использован менеджером для деактивации карты
+      parameters:
+        - name: bonusCard_id
+          in: path
+          description: Идентификатор бонусной карты
+          required: true
+          schema:
+            type: integer
+      requestBody:
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  balance:
+                    type: integer
+                  lastUse:
+                    type: string
+                    format: date-time
+                  avgPercent:
+                    type: integer
+                  useAmount:
+                    type: integer
+                  active:
+                    type: boolean
+                    example: false
+      responses:
+        '200':
+          description: Успешно
+        '500':
+          description: Ошибка сервера
+  /report:
+    post:
+      tags:
+        - report
+      summary: Создание отчёта
+      description: |
+        С помощью этого метода вы можете сформировать отчёт о статистике использования бонусных карт клиентами за отчётный месяц
+      requestBody:
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  month:
+                    type: string
+                    example: 04.2024
+      responses:
+        '200':
+          description: Успешно
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  report_id:
+                    type: integer
+                    example: 897
+                  createDate:
+                    type: string
+                    format: date-time
+            application/xml:
+              schema:
+                type: object
+                properties:
+                  report_id:
+                    type: integer
+                    example: 897
+                  createDate:
+                    type: string
+                    format: date-time
+                xml:
+                  name: report
+        '500':
+          description: Ошибка сервера
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: Ошибка сервера
+            application/xml:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: Ошибка сервера
+                xml:
+                  name: report
+  /report/{month}:
+    get:
+      tags:
+        - report
+      summary: Получение данных по отчёту
+      description: |
+        С помощью этого метода вы можете получить отчёт за месяц
+      parameters:
+        - name: month
+          in: path
+          description: Отчётный месяц
+          required: true
+          schema:
+            type: string
+            example: 04.2024
+      responses:
+        '200':
+          description: Успешно
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/report"
+            application/xml:
+              schema:
+                $ref: "#/components/schemas/report"
+        '404':
+          description: Некорректный запрос
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: Отчёт не найден
+            application/xml:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: Отчёт не найден
+                xml:
+                  name: report
+  /payment:
+    post:
+      tags:
+        - payment
+      summary: Создание платежа
+      description: |
+        С помощью этого метода вы можете создать платёж по бронированию. В рамках метода вводится кол-во бонусов, которое хочет потратить клиент на частичную оплату покупки в том случае, если при бронировании была указана бонусная карта. Клиент не может оплатить бонусами более 50% стоимости бронирования. Платёжные данные не вводятся, т.к. сама оплата с вводом таких данных происходит во  внешней системе оплаты
+      requestBody:
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  booking_id:
+                    type: integer
+                    example: 456
+                  bonusAmount:
+                    type: integer
+                    example: 213
+      responses:
+        '200':
+          description: Успешно
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  payment_id:
+                    type: integer
+                    example: 456
+                  createDate:
+                    type: string
+                    format: date-time
+            application/xml:
+              schema:
+                type: object
+                properties:
+                  payment_id:
+                    type: integer
+                    example: 456
+                  createDate:
+                    type: string
+                    format: date-time
+                xml:
+                  name: payment
+        '500':
+          description: Ошибка сервера
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: Ошибка сервера
+            application/xml:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: Ошибка сервера
+                xml:
+                  name: payment
+  /payment/{payment_id}:
+    get:
+      tags:
+        - payment
+      summary: Получение данных по платежу
+      description: |
+        С помощью этого метода вы можете получить всю информацию по совершённой оплате бронирования
+      parameters:
+        - name: payment_id
+          in: path
+          description: Идентификатор платежа
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Успешно
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/payment"
+            application/xml:
+              schema:
+                $ref: "#/components/schemas/payment"
+        '404':
+          description: Некорректный запрос
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: Платёж не найден
+            application/xml:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: Платёж не найден
+                xml:
+                  name: payment
+components:
+  schemas:
+    session:
+      type: object
+      properties:
+        session_id:
+          type: integer
+          example: 456
+        name_film:
+          type: string
+          example: Человек-Паук
+        free_places_count:
+          type: integer
+          example: 16
+        room_number: 
+          type: integer
+          example: 4
+        dateTime:
+          type: string
+          format: date-time
+    sessions:
+      type: array
+      items: 
+        $ref: "#/components/schemas/session"
+    pagination:
+      type: object
+      required:
+        - limit
+        - offset
+        - totalCount
+      properties:
+        limit:
+          type: integer
+          example: 5
+        offset:
+          type: integer
+          example: 1
+        totalCount:
+          type: integer
+          example: 15
+    booking:
+      type: object
+      properties:
+        session_id:
+          type: integer
+          example: 356
+        name_film:
+          type: string
+          example: Человек-Паук
+        session_dateTime:
+          type: string
+          format: date-time
+        createDate:
+          type: string
+          format: date-time
+        tickets:
+          type: array
+          items:
+            type: object
+            properties:
+              ticket_price:
+                type: integer
+                example: 599
+              room_number:
+                type: integer
+                example: 5
+              row_number:
+                type: integer
+                example: 10
+              place_number:
+                type: integer
+                example: 12
+        amount:
+          type: integer
+          example: 599
+        bonusCard_id:
+          type: integer
+          example: 112233
+        status:
+          type: string
+          enum:
+            - Активно
+            - Отменено
+          default: Активно
+    bonusCard:
+      type: object
+      properties:
+        bonusCard_id:
+          type: integer
+          example: 112233
+        cardHolder_id:
+          type: integer
+          example: 347
+        cardHolder_name:
+          type: string
+          example: Petrov Vasiliy Romanovich 
+        createDate:
+          type: string
+          format: date-time
+        balance:
+          type: integer
+          example: 213
+        lastUse:
+          type: string
+          format: date-time
+        useAmount:
+          type: integer
+          example: 3
+        avgPercent:
+          type: integer
+          example: 34
+        active:
+          type: boolean
+          example: true
+    report:
+      type: object
+      properties:
+        report_id:
+          type: integer
+          example: 7890
+        month:
+          type: string
+          example: 04.2024
+        createDate:
+          type: string
+          format: date-time
+        cardPercentUse:
+          type: integer
+          example: 50
+        bookingAmount:
+          type: integer
+          example: 200
+        bookingAmountCard:
+          type: integer
+          example: 100
+        bookingPriceCard:
+          type: integer
+          example: 10000
+        bonusAmount:
+          type: integer
+          example: 3800
+        avgPercent:
+          type: integer
+          example: 38
+    payment:
+      type: object
+      properties:
+        payment_id:
+          type: integer
+          example: 8890
+        booking_id:
+          type: integer
+          example: 456
+        amount:
+          type: integer
+          example: 599
+        bonusCard_id:
+          type: integer
+          example: 112233
+        bonusAmount:
+          type: integer
+          example: 213
+        createDate:
+          type: string
+          format: date-time
