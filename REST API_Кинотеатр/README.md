@@ -1,0 +1,1 @@
+# Ссылка на API: [SwaggerHub](https://app.swaggerhub.com/apis/YuriyFilippov/IskorkaAPI/1.0.0)
